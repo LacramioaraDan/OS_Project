@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 char *menu(char *fileName, enum FileType fileType){
 
@@ -66,6 +67,35 @@ char *menu(char *fileName, enum FileType fileType){
 
 }
 
+void lastModified(struct stat st) {
+    char timeStr[9];
+    __time_t lastModTime = st.st_mtime;
+    struct tm *localTime = localtime(&lastModTime);
+    strftime(timeStr, sizeof(timeStr), "%S", localTime);
+    printf("Last modified time: %s\n", timeStr);
+}
+
+int countFilesWithC(char *dirName) {
+    int count = 0;
+    struct dirent *entry;
+
+    dir = opendir(dirName);
+    if (dir == NULL) {
+        perror("opendir");
+        return -1;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_REG && strstr(entry->d_name, ".c") != NULL) {
+            count++;
+        }
+    }
+
+    closedir(dir);
+    return count;
+}
+
+
 void run(char *fileName, enum FileType fileType, char *options){
 
   struct stat st;
@@ -114,6 +144,7 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
         }
+        break;
 
       case DIR:
         switch (options[i]) {
@@ -126,18 +157,20 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
           case 'a':
-
+            accesRights(st);
             break;
 
           case 'c':
-          
+            countFilesWithC(fileName);
             break;
 
     
           default:
             break;
 
+      
         }
+      break;
   
 
       case LINK:
@@ -160,12 +193,13 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
           case 'a':
-
+            accesRights(st);
             break;
 
           default:
             break;
         }
+      break;
     }
   }
 }
