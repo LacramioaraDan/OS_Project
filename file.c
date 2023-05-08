@@ -1,10 +1,16 @@
-#include "file.h"
 #include <stdio.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <time.h>
+
+enum FileType { REG, LINK, DIR };
+
+struct stat st1;
 
 char *menu(char *fileName, enum FileType fileType){
 
@@ -67,33 +73,27 @@ char *menu(char *fileName, enum FileType fileType){
 
 }
 
-void lastModified(struct stat st) {
-    char timeStr[9];
-    __time_t lastModTime = st.st_mtime;
-    struct tm *localTime = localtime(&lastModTime);
-    strftime(timeStr, sizeof(timeStr), "%S", localTime);
-    printf("Last modified time: %s\n", timeStr);
-}
 
-int countFilesWithC(char *dirName) {
-    int count = 0;
-    struct dirent *entry;
 
-    dir = opendir(dirName);
-    if (dir == NULL) {
-        perror("opendir");
-        return -1;
-    }
+// int countFilesWithC(char *dirName) {
+//     int count = 0;
+//     struct dirent *entry;
 
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG && strstr(entry->d_name, ".c") != NULL) {
-            count++;
-        }
-    }
+//     dir = opendir(dirName);
+//     if (dir == NULL) {
+//         perror("opendir");
+//         return -1;
+//     }
 
-    closedir(dir);
-    return count;
-}
+//     while ((entry = readdir(dir)) != NULL) {
+//         if (entry->d_type == DT_REG && strstr(entry->d_name, ".c") != NULL) {
+//             count++;
+//         }
+//     }
+
+//     closedir(dir);
+//     return count;
+// }
 
 
 void run(char *fileName, enum FileType fileType, char *options){
@@ -121,7 +121,9 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
           case 'm':
-            lastModified(st);
+            char *timeStr = ctime(&st.st_mtime);
+            printf("Time of last modification is: %s", timeStr);
+        
             break;
 
           case 'a':
@@ -161,7 +163,7 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
           case 'c':
-            countFilesWithC(fileName);
+            //countFilesWithC(fileName);
             break;
 
     
@@ -316,7 +318,8 @@ void size(struct stat st) {
 
 void lastModified(struct stat st){
 
-  printf("The time of last modification is: %s\n", ctime(st.st_mtime));
+  printf("WHAT");
+  printf("The time of last modification is: ");
 
 }
 
