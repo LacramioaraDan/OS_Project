@@ -7,8 +7,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
+#include<dirent.h>
 
-enum FileType { REG, LINK, DIR };
+enum FileType { REG, LINK, DIRECTORY };
 
 struct stat st1;
 
@@ -33,7 +34,7 @@ char *menu(char *fileName, enum FileType fileType){
 
     break; 
 
-    case DIR:
+    case DIRECTORY:
 
       printf("\n%s - It's a directory.\n", fileName);
       printf("-n: name\n");
@@ -54,7 +55,6 @@ char *menu(char *fileName, enum FileType fileType){
       printf("-d: size of symbolic link\n");
       printf("-t: size of target file\n");
       printf("-a: access rights\n");
-      printf("-l: create symbolic link\n");
       printf("\nGive option: ");
 
       scanf("%s", options);
@@ -73,28 +73,31 @@ char *menu(char *fileName, enum FileType fileType){
 
 }
 
+int countCFiles(char *dirName) {
+  int count = 0;
+  struct dirent *entry;
+  DIR *dir;
 
+  dir = opendir(dirName);
+  if (dir == NULL) {
+    perror("opendir");
+    return -1;
+  }
 
-// int countFilesWithC(char *dirName) {
-//     int count = 0;
-//     struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) {
+    char filePath[256];
+    snprintf(filePath, sizeof(filePath), "%s/%s", dirName, entry->d_name);
 
-//     dir = opendir(dirName);
-//     if (dir == NULL) {
-//         perror("opendir");
-//         return -1;
-//     }
+    struct stat fileStat;
+    if (stat(filePath, &fileStat) == 0 && S_ISREG(fileStat.st_mode) &&
+        strstr(entry->d_name, ".c") != NULL) {
+      count++;
+    }
+  }
 
-//     while ((entry = readdir(dir)) != NULL) {
-//         if (entry->d_type == DT_REG && strstr(entry->d_name, ".c") != NULL) {
-//             count++;
-//         }
-//     }
-
-//     closedir(dir);
-//     return count;
-// }
-
+  closedir(dir);
+  return count;
+}
 
 void run(char *fileName, enum FileType fileType, char *options){
 
@@ -148,7 +151,7 @@ void run(char *fileName, enum FileType fileType, char *options){
         }
         break;
 
-      case DIR:
+      case DIRECTORY:
         switch (options[i]) {
         
           case 'n':
@@ -156,6 +159,7 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
           case 'd':
+            size(st);
             break;
 
           case 'a':
@@ -163,7 +167,12 @@ void run(char *fileName, enum FileType fileType, char *options){
             break;
 
           case 'c':
-            //countFilesWithC(fileName);
+            int fileCount = countCFiles(fileName);
+            if (fileCount == -1) {
+              printf("Error counting files.\n");
+            } else {
+              printf("Number of '.c' files in the directory: %d\n", fileCount);
+            }
             break;
 
     
@@ -180,23 +189,44 @@ void run(char *fileName, enum FileType fileType, char *options){
         
           case 'n':
             printf("Name of symbolic link: %s\n", fileName);
-            break;
+          break;
 
           case 'l':
-
+            int result = unlink(fileName);
+            if (result == 0) {
+              printf("Symbolic link deleted successfully.\n");
+            } else {
+              perror("Error deleting symbolic link");
+            }
             break;
 
-          case 'd':
-
-            break;
+            case 'd':
+              size(st);
+          break;
 
           case 't':
+            struct stat st;
+            char targetPath[256];
+            ssize_t targetSize = readlink(fileName, targetPath, sizeof(targetPath) - 1);
+            if (targetSize == -1) {
+              perror("Error reading symbolic link");
+              return 1;
+            }
+            targetPath[targetSize] = '\0';
 
-            break;
+            if (stat(targetPath, &st) == -1) {
+              perror("Error getting file information");
+              return 1;
+            }
+            off_t fileSize = st.st_size;
+
+            printf("Size of target file: %ld bytes\n", fileSize);
+
+          break;
 
           case 'a':
             accesRights(st);
-            break;
+          break;
 
           default:
             break;
@@ -211,7 +241,7 @@ void parse(int argc, char *argv[]){
   for (int i = 1; i < argc; i++) {
 
     struct stat st;
-    stat(argv[i], &st);
+    lstat(argv[i], &st);
 
     if (S_ISREG(st.st_mode)) {
 
@@ -229,8 +259,8 @@ void parse(int argc, char *argv[]){
     
     else if (S_ISDIR(st.st_mode)) {
 
-      char *options = menu(argv[i], DIR);
-      run(argv[i], DIR, options);
+      char *options = menu(argv[i], DIRECTORY);
+      run(argv[i], DIRECTORY, options);
 
     }
   }
@@ -259,7 +289,7 @@ int valid(enum FileType fileType, const char *options){
 
     }
 
-    case DIR:{
+    case DIRECTORY:{
       const char dirValid[] = "-ndac";
 
       for (int i = 0; dirValid[i] != '\0'; i++) {
@@ -316,35 +346,33 @@ void size(struct stat st) {
 
 }
 
-void lastModified(struct stat st){
-
-  printf("WHAT");
-  printf("The time of last modification is: ");
-
-}
-
 void accesRights(struct stat st){
 
   __mode_t mode = st.st_mode;
 
-  printf("\nThe access rights are:\n");
+  printf("\nThe access rights are:\n\n");
 
   printf("  User:\n");
 
-  printf("\tRead - %s\n", mode & S_IRUSR ? "yes" : "no");
-  printf("\tWrite - %s\n", mode & S_IWUSR ? "yes" : "no");
-  printf("\tExecute - %s\n", mode & S_IXUSR ? "yes" : "no");
+  printf("\tRead : %s\n", mode & S_IRUSR ? "yes" : "no");
+  printf("\tWrite : %s\n", mode & S_IWUSR ? "yes" : "no");
+  printf("\tExecute : %s\n", mode & S_IXUSR ? "yes" : "no");
 
   printf("  Group:\n");
 
-  printf("\tRead - %s\n", mode & S_IRGRP ? "yes" : "no");
-  printf("\tWrite - %s\n", mode & S_IWGRP ? "yes" : "no");
-  printf("\tExecute - %s\n", mode & S_IXGRP ? "yes" : "no");
+  printf("\tRead : %s\n", mode & S_IRGRP ? "yes" : "no");
+  printf("\tWrite : %s\n", mode & S_IWGRP ? "yes" : "no");
+  printf("\tExecute : %s\n", mode & S_IXGRP ? "yes" : "no");
 
   printf("  Others:\n");
 
-  printf("\tRead - %s\n", mode & S_IROTH ? "yes" : "no");
-  printf("\tWrite - %s\n", mode & S_IWOTH ? "yes" : "no");
-  printf("\tExecute - %s\n", mode & S_IXOTH ? "yes" : "no");
+  printf("\tRead : %s\n", mode & S_IROTH ? "yes" : "no");
+  printf("\tWrite : %s\n", mode & S_IWOTH ? "yes" : "no");
+  printf("\tExecute : %s\n", mode & S_IXOTH ? "yes" : "no");
 
 }
+
+
+
+
+
