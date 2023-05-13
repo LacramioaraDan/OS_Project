@@ -1,11 +1,10 @@
-#include "file.c"
-#include <stdio.h>
 #include "processes.c"
+#include <stdio.h>
 
 int main(int argc, char *argv[]) {
 
-  parse(argc, argv);
-  process();
+  processes(argc,argv);
+
   return 0;
-  
+
 }
